@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 ModuleName = "example1" 
-SET_TEMP = 21.0
+SET_TEMP = 26.0
 
 import sys
 import os.path
@@ -34,57 +34,60 @@ from cbconfig import *
 class App(CbApp):
     def __init__(self, argv):
         logging.basicConfig(filename=CB_LOGFILE,level=CB_LOGGING_LEVEL,format='%(asctime)s %(message)s')
-        # The following 3 declarations must be made
-        CbApp.processAdaptor = self.processAdaptor
-        CbApp.appConfigure = self.configure
-        CbApp.processConcentrator = self.processConcentrator
-        #
+        self.appClass = "control"
         self.state = "stopped"
+        self.gotSwitch = False
         self.sensorID = ""
         self.switchID = ""
         #CbApp.__init__ MUST be called
         CbApp.__init__(self, argv)
 
-    def states(self, action):
+    def setState(self, action):
         self.state = action
         msg = {"id": self.id,
                "status": "state",
                "state": self.state}
-        self.cbSendManagerMsg(msg)
+        self.sendManagerMessage(msg)
 
-    def processServices(self, message):
-        for p in message["services"]:
+    def onAdaptorFunctions(self, message):
+        for p in message["functions"]:
             if p["parameter"] == "temperature":
                 self.sensorID = message["id"]
                 req = {"id": self.id,
-                      "req": "services",
-                      "services":[
-                                 "parameter": "temperature",
-                                 "interval": 30.0
-                                 ]
+                      "request": "functions",
+                      "functions": [
+                                    {"parameter": "temperature",
+                                    "interval": 30.0}
+                                   ]
                       }
-                self.cbSendMsg(req, self.message["id"])
+                self.sendMessage(req, message["id"])
+                logging.debug("%s onadaptorFunctions, req: %s", ModuleName, req)
             elif p["parameter"] == "switch":
                 self.switchID = message["id"]
+                self.gotSwitch = True
+                logging.debug("%s switchID: %s", ModuleName, self.switchID)
+        self.setState("running")
 
-    def processAdaptor(self, message):
-        if message["content"] == "services":
-            self.processServices(message)
-        elif message["id"] = self.sensorID:
-            command = {"id": self.id,
-                       "content": "command"}
-        if message["content"] == "temperature":
-            if message["data"] > SET_TEMP + 0.2:
-                command["data"] = "off"
-                self.cbSendMsg(command, self.switchID)
-            elif message["data"] < SET_TEMP - 0.2:
-                command["data"] = "on"
-                self.cbSendMsg(command, self.switchID)
-            elif message["id"] == self.switchID:
-                self.switchState = message["body"]
+    def onAdaptorData(self, message):
+        if message["id"] == self.sensorID:
+            if self.gotSwitch:
+                command = {"id": self.id,
+                           "request": "command"}
+                if message["content"] == "temperature":
+                    logging.debug("%s %s Temperature = %s", ModuleName, self.id, message["data"])
+                    if message["data"] > SET_TEMP + 0.2:
+                        command["data"] = "off"
+                        self.sendMessage(command, self.switchID)
+                    elif message["data"] < SET_TEMP - 0.2:
+                        command["data"] = "on"
+                        self.sendMessage(command, self.switchID)
+            else:
+                logging.debug("%s Trying to process temperature before switch connected", ModuleName)
+        elif message["id"] == self.switchID:
+            self.switchState = message["body"]
 
-    def configure(self, config):
-        self.states("starting")
+    def onConfigureMessage(self, config):
+        self.setState("starting")
 
 if __name__ == '__main__':
     app = App(sys.argv)
