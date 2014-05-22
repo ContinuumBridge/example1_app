@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 ModuleName = "example1" 
-SET_TEMP = 26.0
+SET_TEMP = 22.5
 
 import sys
 import os.path
@@ -77,9 +77,11 @@ class App(CbApp):
                     logging.debug("%s %s Temperature = %s", ModuleName, self.id, message["data"])
                     if message["data"] > SET_TEMP + 0.2:
                         command["data"] = "off"
+                        logging.debug("%s %s Switching off", ModuleName, self.id)
                         self.sendMessage(command, self.switchID)
                     elif message["data"] < SET_TEMP - 0.2:
                         command["data"] = "on"
+                        logging.debug("%s %s Switching on", ModuleName, self.id)
                         self.sendMessage(command, self.switchID)
             else:
                 logging.debug("%s Trying to process temperature before switch connected", ModuleName)
