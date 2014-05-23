@@ -39,6 +39,17 @@ class App(CbApp):
         self.gotSwitch = False
         self.sensorID = ""
         self.switchID = ""
+        # Temporary botch - set temperature from a file
+        try:
+            tempFile = CB_CONFIG_DIR + 'set-temp'
+            with open(tempFile, 'r') as f:
+                s = f.read()
+            if s.endswith('\n'):
+                s = s[:-1]
+            SET_TEMP = s
+            logging.debug("%s Set temperature: %s", ModuleName, SET_TEMP)
+        except:
+            logging.debug("%s Could not read set-temp file", ModuleName)
         #CbApp.__init__ MUST be called
         CbApp.__init__(self, argv)
 
